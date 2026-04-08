@@ -647,12 +647,12 @@
           <p>
             Your microphone is <strong>always on while listening is enabled</strong>,
             but everything you say stays inside your browser. Chrome's local
-            Web Speech recognizer scans for any of your chats' trigger words
+            Web Speech recognizer scans for any of your agent trigger words
             (currently <code id="aboutTriggerWord">bro</code>) without sending any
             audio to our server.
           </p>
           <p>
-            Only <strong>after the trigger word fires</strong>, the next ~3 seconds
+            Only <strong>after an agent trigger word fires</strong>, the next ~3 seconds
             of speech are recorded with your microphone, uploaded to
             <strong>ElevenLabs Scribe</strong> for high-quality transcription, and
             the resulting text is sent to <strong>Browser Use Cloud</strong> as
@@ -858,16 +858,25 @@ function renderSessions() {
 
     // Editing mode: show an input for the trigger word.
     if (s.editing) {
+      const wasNew = !s.triggerWord; // distinguishes "new chat being named" from "rename"
       row.classList.add('editing');
       row.innerHTML = `
         <span class="dot"></span>
-        <input class="name-input" type="text" placeholder="trigger word…" autocomplete="off" spellcheck="false" />
-        <button class="stop-btn" title="Cancel">
+        <input class="name-input" type="text" placeholder="agent trigger word…" autocomplete="off" spellcheck="false" />
+        <button class="stop-btn" title="${wasNew ? 'Cancel' : 'Discard rename'}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>`;
       const input = row.querySelector('.name-input');
       input.value = s.triggerWord || '';
-      const cancel = () => destroyLocalSessionLocalOnly(s.localId);
+      const cancel = () => {
+        if (wasNew) {
+          destroyLocalSessionLocalOnly(s.localId);
+        } else {
+          delete s.editing;
+          saveSessions();
+          renderSessions();
+        }
+      };
       const save = () => {
         const w = input.value.trim().toLowerCase();
         if (!w) { cancel(); return; }
@@ -893,7 +902,7 @@ function renderSessions() {
       input.addEventListener('blur', () => { setTimeout(save, 50); });
       row.querySelector('.stop-btn').onclick = (ev) => { ev.stopPropagation(); cancel(); };
       sessionListEl.appendChild(row);
-      requestAnimationFrame(() => input.focus());
+      requestAnimationFrame(() => { input.focus(); input.select(); });
       continue;
     }
 
@@ -910,9 +919,19 @@ function renderSessions() {
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
       </button>`;
     row.querySelector('.name').textContent = s.triggerWord || s.name;
+    row.title = 'Double-click to rename';
     row.onclick = (ev) => {
       if (ev.target.closest('.stop-btn') || ev.target.closest('.cloud-link')) return;
       setActiveSession(s.localId);
+    };
+    row.ondblclick = (ev) => {
+      if (ev.target.closest('.stop-btn') || ev.target.closest('.cloud-link')) return;
+      ev.preventDefault();
+      // Clear any selection that the double-click made.
+      try { window.getSelection().removeAllRanges(); } catch {}
+      s.editing = true;
+      saveSessions();
+      renderSessions();
     };
     row.querySelector('.stop-btn').onclick = async (ev) => {
       ev.stopPropagation();
@@ -1327,7 +1346,7 @@ function addPlaceholderUserBubble() {
   // previous failed capture, so the user doesn't see them next to the new task.
   const s = getActiveSession();
   const before = s.chat.length;
-  s.chat = s.chat.filter(m => !(m.role === 'system err' && m.text === 'Heard nothing after the trigger word'));
+  s.chat = s.chat.filter(m => !(m.role === 'system err' && /^Heard nothing after/.test(m.text || '')));
   if (s.chat.length !== before) { saveSessions(); renderChat(); }
 
   // Big centered listening banner — replaces any empty placeholder.
@@ -1477,7 +1496,7 @@ async function captureCommandAfterTrigger() {
       if (wasRunning && SR) {
         try { startListening(); } catch (e) { pushLog('restart recog failed: ' + e.message); }
       }
-      if (!text) addSystem('Heard nothing after the trigger word', true);
+      if (!text) addSystem('Heard nothing after the agent trigger word', true);
       else       pushLog('ignored short transcript: ' + text);
       setStatusState(running ? 'live' : 'idle', running ? waitingLabel() : 'Stopped');
       return;
