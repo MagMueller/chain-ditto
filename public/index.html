@@ -94,6 +94,22 @@
   .session-row:hover .stop-btn { opacity: 1; }
   .session-row .stop-btn:hover { background: var(--err); color: white; }
   .session-row .stop-btn svg { width: 10px; height: 10px; }
+  .session-row.editing .stop-btn { opacity: 1; }
+  .session-row .name-input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font-size: .82rem;
+    font-weight: 500;
+    font-family: inherit;
+    padding: 0;
+    outline: none;
+    min-width: 0;
+  }
+  .session-row .name-input::placeholder { color: var(--muted); font-style: italic; }
+  .session-row .name-input.error { color: var(--err); }
+  .session-row.editing { border-color: var(--user); background: rgba(43, 108, 255, .1); }
   .session-row .cloud-link {
     width: 20px; height: 20px;
     border-radius: 5px;
@@ -531,7 +547,7 @@
   <div class="col center">
     <div class="panel chat-panel">
       <div class="chat-header">
-        <h1>hi bro</h1>
+        <h1 id="chatTitle">bro</h1>
         <div class="chat-header-actions">
           <a id="liveBtn" class="live-btn" target="_blank" rel="noopener" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v7h-7"/><path d="M3 10V3h7"/></svg>
@@ -595,8 +611,6 @@
       <details class="settings-group">
         <summary><h3>Voice</h3></summary>
         <div class="settings-group-body">
-          <label>Trigger word</label>
-          <input id="wakeWord" placeholder="bro" />
           <label class="checkbox-row">
             <input type="checkbox" id="speakResults" />
             <span>Read results aloud</span>
@@ -633,9 +647,9 @@
           <p>
             Your microphone is <strong>always on while listening is enabled</strong>,
             but everything you say stays inside your browser. Chrome's local
-            Web Speech recognizer scans for the trigger word
-            (<code id="aboutTriggerWord">bro</code>) without sending any audio
-            to our server.
+            Web Speech recognizer scans for any of your chats' trigger words
+            (currently <code id="aboutTriggerWord">bro</code>) without sending any
+            audio to our server.
           </p>
           <p>
             Only <strong>after the trigger word fires</strong>, the next ~3 seconds
@@ -664,19 +678,10 @@
 // =========================================================================
 const settings = JSON.parse(localStorage.getItem('chain-ditto') || '{}');
 function save() { localStorage.setItem('chain-ditto', JSON.stringify(settings)); }
-for (const f of ['wakeWord','apiKey','proxyCC']) {
+for (const f of ['apiKey','proxyCC']) {
   const el = document.getElementById(f);
-  el.value = settings[f] || (f === 'wakeWord' ? 'bro' : f === 'proxyCC' ? 'us' : '');
-  el.addEventListener('input', () => {
-    settings[f] = el.value;
-    save();
-    if (f === 'wakeWord') {
-      try { refreshPersistentTrigger(); } catch {}
-      try { if (typeof running !== 'undefined' && running && !armed) {
-        setStatusState('live', waitingLabel());
-      } } catch {}
-    }
-  });
+  el.value = settings[f] || (f === 'proxyCC' ? 'us' : '');
+  el.addEventListener('input', () => { settings[f] = el.value; save(); });
 }
 // Read-aloud checkbox (defaults to true).
 const speakResultsEl = document.getElementById('speakResults');
@@ -708,21 +713,44 @@ const sessionsStore = JSON.parse(localStorage.getItem('chain-ditto-sessions') ||
 for (const s of sessionsStore.list) {
   if (s.name && /^Session\s+\d+$/i.test(s.name)) s.name = s.name.replace(/^Session/i, 'Chat');
 }
+// Migrate to per-session trigger words. Each chat now owns its own trigger word.
+const _legacyWake = (settings.wakeWord || 'bro').split(',')[0].trim().toLowerCase();
+for (const s of sessionsStore.list) {
+  if (!s.triggerWord) s.triggerWord = _legacyWake || 'bro';
+  if (typeof s.inFlight === 'boolean') s.inFlight = false; // never persist running state
+}
 function saveSessions() { localStorage.setItem('chain-ditto-sessions', JSON.stringify(sessionsStore)); }
 
 function uid() { return 'l' + Math.random().toString(36).slice(2, 10); }
-function newLocalSession(name) {
+function newLocalSession(triggerWord, opts) {
   const s = {
     localId: uid(),
-    name: name || ('Chat ' + (sessionsStore.list.length + 1)),
+    triggerWord: (triggerWord || '').trim().toLowerCase(),
+    name: triggerWord || 'Chat ' + (sessionsStore.list.length + 1), // legacy display fallback
     browserUseSessionId: null,
-    chat: [],     // {role, text}
-    tasks: [],    // {id, task, status, output, steps}
+    chat: [],
+    tasks: [],
   };
+  if (opts && opts.editing) s.editing = true;
   sessionsStore.list.push(s);
   sessionsStore.active = s.localId;
   saveSessions();
   return s;
+}
+// Helpers for per-chat trigger words.
+function getAllTriggers() {
+  return sessionsStore.list
+    .filter(s => s.triggerWord && s.triggerWord.trim())
+    .map(s => ({ word: s.triggerWord.trim().toLowerCase(), sessionId: s.localId }));
+}
+function getActiveTrigger() {
+  const s = getActiveSession();
+  return (s && s.triggerWord) || '';
+}
+function isTriggerWordTaken(word, exceptId) {
+  const w = (word || '').trim().toLowerCase();
+  if (!w) return false;
+  return sessionsStore.list.some(s => s.localId !== exceptId && (s.triggerWord || '').toLowerCase() === w);
 }
 function getActiveSession() {
   if (!sessionsStore.list.length) return newLocalSession();
@@ -733,6 +761,13 @@ function setActiveSession(localId) {
   saveSessions();
   renderAll();
   refreshLiveBtn();
+  refreshChatHeader();
+  refreshPersistentTrigger();
+}
+function refreshChatHeader() {
+  const el = document.getElementById('chatTitle');
+  if (!el) return;
+  el.textContent = getActiveTrigger() || 'hi bro';
 }
 
 // =========================================================================
@@ -812,7 +847,7 @@ function renderSessions() {
   if (!sessionsStore.list.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = 'No sessions';
+    empty.textContent = 'No chats yet';
     sessionListEl.appendChild(empty);
     return;
   }
@@ -820,6 +855,48 @@ function renderSessions() {
     const row = document.createElement('div');
     row.className = 'session-row' + (s.localId === sessionsStore.active ? ' active' : '');
     if (s.browserUseSessionId) row.classList.add('live');
+
+    // Editing mode: show an input for the trigger word.
+    if (s.editing) {
+      row.classList.add('editing');
+      row.innerHTML = `
+        <span class="dot"></span>
+        <input class="name-input" type="text" placeholder="trigger word…" autocomplete="off" spellcheck="false" />
+        <button class="stop-btn" title="Cancel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>`;
+      const input = row.querySelector('.name-input');
+      input.value = s.triggerWord || '';
+      const cancel = () => destroyLocalSessionLocalOnly(s.localId);
+      const save = () => {
+        const w = input.value.trim().toLowerCase();
+        if (!w) { cancel(); return; }
+        if (isTriggerWordTaken(w, s.localId)) {
+          input.classList.add('error');
+          input.title = 'Another chat already uses "' + w + '"';
+          input.focus();
+          return;
+        }
+        s.triggerWord = w;
+        s.name = w;
+        delete s.editing;
+        saveSessions();
+        renderSessions();
+        refreshChatHeader();
+        refreshPersistentTrigger();
+      };
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        else input.classList.remove('error');
+      });
+      input.addEventListener('blur', () => { setTimeout(save, 50); });
+      row.querySelector('.stop-btn').onclick = (ev) => { ev.stopPropagation(); cancel(); };
+      sessionListEl.appendChild(row);
+      requestAnimationFrame(() => input.focus());
+      continue;
+    }
+
     const cloudHref = s.browserUseSessionId
       ? `https://cloud.browser-use.com/session/${s.browserUseSessionId}`
       : '';
@@ -829,10 +906,10 @@ function renderSessions() {
       ${cloudHref ? `<a class="cloud-link" href="${cloudHref}" target="_blank" rel="noopener" title="Open in Browser Use Cloud">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v7h-7"/><path d="M3 10V3h7"/></svg>
       </a>` : ''}
-      <button class="stop-btn" title="Destroy session">
+      <button class="stop-btn" title="Destroy chat">
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
       </button>`;
-    row.querySelector('.name').textContent = s.name;
+    row.querySelector('.name').textContent = s.triggerWord || s.name;
     row.onclick = (ev) => {
       if (ev.target.closest('.stop-btn') || ev.target.closest('.cloud-link')) return;
       setActiveSession(s.localId);
@@ -843,6 +920,21 @@ function renderSessions() {
     };
     sessionListEl.appendChild(row);
   }
+}
+
+// Local-only delete used when the user cancels a brand-new chat in edit mode.
+// (No BU session to destroy yet.)
+function destroyLocalSessionLocalOnly(localId) {
+  const idx = sessionsStore.list.findIndex(s => s.localId === localId);
+  if (idx === -1) return;
+  sessionsStore.list.splice(idx, 1);
+  if (sessionsStore.active === localId) {
+    sessionsStore.active = sessionsStore.list[0]?.localId || null;
+  }
+  saveSessions();
+  renderAll();
+  refreshChatHeader();
+  refreshPersistentTrigger();
 }
 
 // Tasks panel removed — left here as a no-op so existing call sites are safe.
@@ -1049,8 +1141,10 @@ let commandBuf = '';
 let commandTimer = null;
 
 function getWakeWords() {
-  return (settings.wakeWord || 'bro')
-    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  // Returns all chat trigger words across all local sessions.
+  // Listening fires when ANY chat's word is heard; the matching chat becomes active.
+  const all = getAllTriggers().map(t => t.word);
+  return all.length ? Array.from(new Set(all)) : ['bro'];
 }
 
 function setStatusState(state, label) {
@@ -1074,7 +1168,7 @@ function refreshActiveStatus() {
 // Persistent "Say bro" call-to-action — always visible above the controls.
 const persistentTriggerEl = document.getElementById('persistentTrigger');
 function refreshPersistentTrigger() {
-  const w = (getWakeWords()[0] || 'trigger');
+  const w = (getActiveTrigger() || 'trigger');
   persistentTriggerEl.querySelector('.word').textContent = w;
   persistentTriggerEl.classList.toggle('listening', !!running);
   const inner = persistentTriggerEl.querySelector('.inner');
@@ -1083,9 +1177,12 @@ function refreshPersistentTrigger() {
   } else {
     inner.title = 'Click to start listening';
   }
-  // Keep the About / privacy section's example trigger word in sync.
+  // About / privacy section: list ALL trigger words across chats.
   const aboutWord = document.getElementById('aboutTriggerWord');
-  if (aboutWord) aboutWord.textContent = w;
+  if (aboutWord) {
+    const all = Array.from(new Set(getAllTriggers().map(t => t.word)));
+    aboutWord.textContent = all.length ? all.join(', ') : 'bro';
+  }
 }
 persistentTriggerEl.querySelector('.inner').addEventListener('click', () => {
   if (running) return;
@@ -1179,12 +1276,20 @@ function handleFinal(transcript) {
   bumpWords(transcript);
   if (armed) return; // already capturing the command
 
-  const wakes = getWakeWords();
-  if (!wakes.length) return;
+  const triggers = getAllTriggers();
+  if (!triggers.length) return;
   // Word-boundary match — "bro" never matches "broccoli", "broker", "brother"…
-  const escaped = wakes.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const uniqueWords = Array.from(new Set(triggers.map(t => t.word)));
+  const escaped = uniqueWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const re = new RegExp('\\b(' + escaped.join('|') + ')\\b', 'i');
-  if (!re.test(transcript)) return;
+  const m = transcript.match(re);
+  if (!m) return;
+  const matchedWord = m[1].toLowerCase();
+  // Find the chat that owns this trigger word and switch to it (if not already active).
+  const matchedTrigger = triggers.find(t => t.word === matchedWord);
+  if (matchedTrigger && sessionsStore.active !== matchedTrigger.sessionId) {
+    setActiveSession(matchedTrigger.sessionId);
+  }
 
   armed = true;
   // Barge-in: if the agent is currently speaking, cut it off immediately.
@@ -1579,7 +1684,7 @@ toggleBtn.onclick = async () => {
 };
 
 document.getElementById('newSessionBtn').onclick = () => {
-  newLocalSession();
+  newLocalSession('', { editing: true });
   renderAll();
 };
 
@@ -1609,10 +1714,11 @@ function unlockAudioOnce() {
 // Boot
 // =========================================================================
 async function boot() {
-  if (!sessionsStore.list.length) newLocalSession();
+  if (!sessionsStore.list.length) newLocalSession('bro');
   renderAll();
   refreshLiveBtn();
   refreshControls();
+  refreshChatHeader();
   refreshPersistentTrigger();
   checkTtsAvailable();
   await listDevices();
