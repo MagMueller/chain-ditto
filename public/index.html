@@ -295,16 +295,61 @@
     transition: border-color .15s;
   }
   .settings-panel input:focus, .settings-panel select:focus { outline: none; border-color: var(--user); }
-  .settings-body { display: flex; flex-direction: column; gap: 1.6rem; }
-  .settings-group { display: flex; flex-direction: column; }
-  .settings-group h3 {
-    margin: 0 0 .4rem;
-    font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
-    color: var(--muted);
-    padding-bottom: .35rem;
+  .settings-body { display: flex; flex-direction: column; gap: .9rem; }
+  /* Top-level collapsible sections */
+  details.settings-group { padding: 0; }
+  details.settings-group > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding-bottom: .4rem;
     border-bottom: 1px solid var(--border);
   }
-  .settings-group label:first-of-type { margin-top: .55rem; }
+  details.settings-group > summary::-webkit-details-marker { display: none; }
+  details.settings-group > summary::before {
+    content: '▸';
+    font-size: .65rem;
+    color: var(--muted);
+    transition: transform .15s;
+  }
+  details.settings-group[open] > summary::before { transform: rotate(90deg); }
+  details.settings-group > summary h3 {
+    margin: 0;
+    font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted);
+  }
+  .settings-group-body { display: flex; flex-direction: column; padding-top: .55rem; }
+  .settings-group-body label:first-of-type { margin-top: 0; }
+  /* Nested "Advanced" subgroup */
+  details.settings-subgroup {
+    margin-top: 1rem;
+    padding-top: .7rem;
+    border-top: 1px solid var(--border);
+  }
+  details.settings-subgroup > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .62rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  details.settings-subgroup > summary::-webkit-details-marker { display: none; }
+  details.settings-subgroup > summary::before {
+    content: '▸';
+    font-size: .58rem;
+    transition: transform .15s;
+  }
+  details.settings-subgroup[open] > summary::before { transform: rotate(90deg); }
+  .settings-subgroup-body { display: flex; flex-direction: column; padding-top: .35rem; }
   .settings-panel label.checkbox-row {
     display: flex; align-items: center; gap: .55rem;
     margin: .85rem 0 .2rem;
@@ -463,38 +508,50 @@
     </div>
 
     <div class="settings-body">
-      <section class="settings-group">
-        <h3>Audio devices</h3>
-        <label>Microphone</label>
-        <select id="micSelect"></select>
-        <label>Speaker output</label>
-        <select id="speakerSelect"></select>
-      </section>
+      <details class="settings-group">
+        <summary><h3>Audio devices</h3></summary>
+        <div class="settings-group-body">
+          <label>Microphone</label>
+          <select id="micSelect"></select>
+          <label>Speaker output</label>
+          <select id="speakerSelect"></select>
+        </div>
+      </details>
 
-      <section class="settings-group">
-        <h3>Voice</h3>
-        <label>Trigger word</label>
-        <input id="wakeWord" placeholder="bro" />
-        <label class="checkbox-row">
-          <input type="checkbox" id="speakResults" />
-          <span>Read results aloud</span>
-        </label>
-      </section>
+      <details class="settings-group">
+        <summary><h3>Voice</h3></summary>
+        <div class="settings-group-body">
+          <label>Trigger word</label>
+          <input id="wakeWord" placeholder="bro" />
+          <label class="checkbox-row">
+            <input type="checkbox" id="speakResults" />
+            <span>Read results aloud</span>
+          </label>
+        </div>
+      </details>
 
-      <section class="settings-group">
-        <h3>Browser Use</h3>
-        <label>API key</label>
-        <input id="apiKey" type="password" placeholder="bu_..." />
-        <label>Persistent file system</label>
-        <select id="workspaceSelect">
-          <option value="">Create new</option>
-          <option value="__none__">None</option>
-        </select>
-        <label>Profile for persistent authentication</label>
-        <select id="profileSelect"><option value="">None</option></select>
-        <label>Proxy country code</label>
-        <input id="proxyCC" placeholder="us" />
-      </section>
+      <details open class="settings-group">
+        <summary><h3>Browser Use</h3></summary>
+        <div class="settings-group-body">
+          <label>API key</label>
+          <input id="apiKey" type="password" placeholder="bu_..." />
+
+          <details class="settings-subgroup">
+            <summary>Advanced</summary>
+            <div class="settings-subgroup-body">
+              <label>Persistent file system</label>
+              <select id="workspaceSelect">
+                <option value="">Create new</option>
+                <option value="__none__">None</option>
+              </select>
+              <label>Profile for persistent authentication</label>
+              <select id="profileSelect"><option value="">None</option></select>
+              <label>Proxy country code</label>
+              <input id="proxyCC" placeholder="us" />
+            </div>
+          </details>
+        </div>
+      </details>
     </div>
   </div>
 </div>
