@@ -7,40 +7,53 @@
 <style>
   :root {
     color-scheme: dark;
-    --bg: #08080a;
-    --panel: #101014;
-    --panel-2: #17171d;
-    --panel-3: #1d1d24;
-    --border: #25252e;
-    --border-strong: #323240;
-    --text: #ededf0;
-    --muted: #7c7c88;
-    --muted-2: #525260;
-    --accent: #22c55e;
-    --accent-soft: rgba(34, 197, 94, 0.12);
-    --accent-stop: #ef4444;
-    --user: #3b82f6;
-    --user-soft: rgba(59, 130, 246, 0.12);
-    --done: #22c55e;
-    --warn: #f59e0b;
-    --warn-soft: rgba(245, 158, 11, 0.14);
-    --err: #ef4444;
-    --err-soft: rgba(239, 68, 68, 0.12);
-    --radius: 12px;
+    /* Surfaces — zinc-based, slightly cool */
+    --bg:        #0a0a0b;
+    --panel:     #131316;
+    --panel-2:   #1a1a1f;
+    --panel-3:   #222228;
+    --border:    #26262d;
+    --border-strong: #33333b;
+    /* Text */
+    --text:   #fafafa;
+    --text-2: #a1a1aa;
+    --muted:  #71717a;
+    --muted-2:#52525b;
+    /* Accents — vivid but not neon */
+    --accent:      #10b981;                  /* emerald */
+    --accent-2:    #34d399;
+    --accent-soft: rgba(16, 185, 129, 0.10);
+    --user:        #3b82f6;                  /* sapphire */
+    --user-2:      #60a5fa;
+    --user-soft:   rgba(59, 130, 246, 0.10);
+    --warn:        #f59e0b;                  /* amber */
+    --warn-soft:   rgba(245, 158, 11, 0.12);
+    --err:         #f43f5e;                  /* rose */
+    --err-soft:    rgba(244, 63, 94, 0.10);
+    --done:        var(--accent);
+    /* Radius + shadow scale */
     --radius-sm: 8px;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.25);
+    --radius:    12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.4);
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    letter-spacing: -0.01em;
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-  h1 { font-size: 1rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
-  h2 { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 .65rem; }
+  h1 { font-size: .95rem; font-weight: 600; margin: 0; letter-spacing: -.015em; color: var(--text); }
+  h2 { font-size: .7rem;  font-weight: 700; text-transform: uppercase; letter-spacing: .1em;  color: var(--muted); margin: 0 0 .8rem; }
+  h3 { font-size: .7rem;  font-weight: 600; letter-spacing: -.005em; }
+  ::selection { background: rgba(59, 130, 246, 0.35); }
 
   .app {
     display: grid;
@@ -109,15 +122,15 @@
   .session-list::-webkit-scrollbar-thumb, .task-list::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 3px; }
 
   .session-row {
-    display: flex; align-items: center; gap: .5rem;
-    padding: .55rem .7rem;
+    display: flex; align-items: center; gap: .55rem;
+    padding: .6rem .75rem;
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all .12s;
+    transition: border-color .15s, background .15s;
   }
-  .session-row:hover { border-color: #383844; }
+  .session-row:hover { border-color: var(--border-strong); background: var(--panel-3); }
   .session-row.active {
     border-color: var(--user);
     background: var(--user-soft);
@@ -573,56 +586,63 @@
   .app.gallery-mode .chat-panel { display: none; }
   .gallery-panel { padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .gallery-header {
-    padding: .9rem 1.1rem;
+    padding: .85rem 1.25rem;
     border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   }
-  .gallery-header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
-  .gallery-controls { display: flex; align-items: center; gap: .5rem; }
-  .gallery-controls label { font-size: .7rem; color: var(--muted); margin: 0; text-transform: uppercase; letter-spacing: .05em; }
+  .gallery-header-left  { display: flex; align-items: center; gap: .9rem; }
+  .gallery-header-right { display: flex; align-items: center; gap: .55rem; }
+  .gallery-title {
+    margin: 0;
+    font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted);
+  }
+  .gallery-controls { display: flex; align-items: center; gap: .45rem; margin-right: .2rem; }
+  .gallery-controls label {
+    font-size: .62rem; color: var(--muted); margin: 0;
+    text-transform: uppercase; letter-spacing: .08em; font-weight: 600;
+  }
   .gallery-controls select {
     background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: .3rem .5rem; font-size: .75rem;
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: .32rem .55rem; font-size: .75rem;
+    font-family: inherit; font-weight: 500;
+    cursor: pointer;
   }
+  .gallery-controls select:hover { border-color: var(--border-strong); }
   .gallery-grid {
     flex: 1; min-height: 0;
     overflow-y: auto;
-    padding: 1.25rem;
+    padding: 1.5rem;
     display: grid;
     grid-template-columns: repeat(var(--gallery-cols, 2), minmax(0, 1fr));
-    gap: 1.25rem;
+    gap: 1.5rem;
     align-content: start;
   }
   .gallery-card {
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1rem 1.1rem .9rem;
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem 1rem;
     display: flex; flex-direction: column;
-    min-height: 320px;
-    aspect-ratio: 4 / 3;
+    min-height: 340px;
+    max-height: 480px;
     cursor: pointer;
-    transition: all .18s ease;
+    transition: border-color .18s ease, background .18s ease;
     overflow: hidden;
     position: relative;
+    isolation: isolate; /* prevent box-shadow from ever bleeding into neighbors */
   }
-  .gallery-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .gallery-card:hover { border-color: var(--border-strong); background: var(--panel-3); }
   .gallery-card.active {
     border-color: var(--user);
-    background: linear-gradient(180deg, var(--user-soft), var(--panel-2));
-    box-shadow: 0 0 0 1px var(--user), 0 8px 30px rgba(59, 130, 246, 0.15);
+    background: linear-gradient(180deg, rgba(59,130,246,0.08), var(--panel-2));
   }
   .gallery-card.live   { border-color: var(--accent); }
-  .gallery-card.busy   {
-    border-color: var(--user);
-    box-shadow: 0 0 0 1px var(--user), 0 4px 20px rgba(59, 130, 246, 0.2);
-  }
-  .gallery-card.armed {
+  .gallery-card.busy   { border-color: var(--user); }
+  .gallery-card.armed  {
     border-color: var(--warn);
-    background: linear-gradient(180deg, var(--warn-soft), var(--panel-2));
-    box-shadow: 0 0 0 2px var(--warn), 0 8px 40px rgba(245, 158, 11, 0.25);
-    transform: translateY(-2px);
+    background: linear-gradient(180deg, rgba(245,158,11,0.12), var(--panel-2));
   }
   .gallery-card-head {
     display: flex; align-items: center; gap: .55rem;
@@ -709,6 +729,9 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -780,18 +803,32 @@
     <!-- Gallery view (hidden in chat mode) -->
     <div class="panel gallery-panel" id="galleryPanel" hidden>
       <div class="gallery-header">
-        <div class="gallery-controls">
-          <label for="galleryCols">Columns</label>
-          <select id="galleryCols">
-            <option value="1">1</option>
-            <option value="2" selected>2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-          </select>
+        <div class="gallery-header-left">
+          <div class="view-toggle" role="tablist" aria-label="View">
+            <button id="viewToggleSingleGallery" class="view-toggle-btn" title="Single agent view" aria-label="Single">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            </button>
+            <button id="viewToggleGalleryGallery" class="view-toggle-btn active" title="Gallery view" aria-label="Gallery">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </button>
+          </div>
+          <h2 class="gallery-title">Agents</h2>
         </div>
-        <div class="chat-header-actions">
+        <div class="gallery-header-right">
+          <div class="gallery-controls">
+            <label for="galleryCols">Cols</label>
+            <select id="galleryCols">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+          <button id="newSessionBtnGallery" class="icon-btn-sm" title="New agent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
           <button id="settingsBtnGallery" class="gear-btn" title="Settings" aria-label="Settings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="3"/>
@@ -999,9 +1036,15 @@ function applyViewMode() {
   const isGallery = settings.viewMode === 'gallery';
   appEl.classList.toggle('gallery-mode', isGallery);
   document.getElementById('galleryPanel').hidden = !isGallery;
-  // Reflect in the segmented toggle.
-  document.getElementById('viewToggleSingle').classList.toggle('active', !isGallery);
-  document.getElementById('viewToggleGallery').classList.toggle('active', isGallery);
+  // Reflect in both segmented toggles (sidebar + gallery-header).
+  ['viewToggleSingle','viewToggleSingleGallery'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', !isGallery);
+  });
+  ['viewToggleGallery','viewToggleGalleryGallery'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', isGallery);
+  });
   if (isGallery) renderGallery();
 }
 function applyGalleryCols() {
@@ -2069,6 +2112,14 @@ function setViewMode(mode) {
 }
 document.getElementById('viewToggleSingle').onclick  = () => setViewMode('chat');
 document.getElementById('viewToggleGallery').onclick = () => setViewMode('gallery');
+// Gallery-header duplicates of the same controls (visible when sidebar is hidden).
+document.getElementById('viewToggleSingleGallery').onclick  = () => setViewMode('chat');
+document.getElementById('viewToggleGalleryGallery').onclick = () => setViewMode('gallery');
+document.getElementById('newSessionBtnGallery').onclick = () => {
+  newLocalSession('', { editing: true });
+  renderAll();
+  if (settings.viewMode !== 'chat') setViewMode('chat'); // drop into chat so the user can see the inline edit
+};
 const settingsBtnGallery = document.getElementById('settingsBtnGallery');
 if (settingsBtnGallery) settingsBtnGallery.onclick = openSettings;
 galleryColsSelect.addEventListener('change', () => {
