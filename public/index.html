@@ -229,20 +229,31 @@
   .log-list .log-line { padding: .12rem 0; }
   .log-list .ts { color: #555; margin-right: .5rem; }
 
-  .chat-controls { padding: .9rem 1.1rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: .8rem; }
+  .chat-controls {
+    padding: .55rem .8rem;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: flex-end; gap: .6rem;
+  }
   .icon-btn {
-    width: 46px; height: 46px;
+    width: 32px; height: 32px;
     border-radius: 50%; border: 0;
     background: var(--accent); color: white;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all .15s;
-    box-shadow: 0 2px 12px rgba(34, 197, 94, 0.25);
+    box-shadow: 0 1px 6px rgba(34, 197, 94, 0.25);
   }
-  .icon-btn:hover { transform: scale(1.05); }
-  .icon-btn:active { transform: scale(0.96); }
-  .icon-btn.running { background: var(--accent-stop); box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3); }
-  .icon-btn svg { width: 18px; height: 18px; }
+  .icon-btn:hover { transform: scale(1.08); }
+  .icon-btn:active { transform: scale(0.94); }
+  .icon-btn.running { background: var(--accent-stop); box-shadow: 0 1px 6px rgba(239, 68, 68, 0.3); }
+  .icon-btn svg { width: 13px; height: 13px; }
+  /* Hide the small text indicator now that the big chat display conveys state */
+  .status-text { display: none; }
+  /* Big clickable trigger word in the empty chat */
+  .chat-empty.clickable { cursor: pointer; transition: opacity .15s, transform .15s; }
+  .chat-empty.clickable:hover { opacity: .82; }
+  .chat-empty.clickable:hover .trigger-word { transform: scale(1.025); }
+  .chat-empty .trigger-word { transition: transform .15s; }
   /* "First, add your API key" call-to-action — replaces the play button when no key */
   .needs-key-btn {
     display: inline-flex; align-items: center; gap: .55rem;
@@ -586,6 +597,17 @@ function renderChat() {
     const w = (getWakeWords()[0] || 'trigger');
     empty.innerHTML = 'Say<span class="trigger-word"></span>';
     empty.querySelector('.trigger-word').textContent = w;
+    // If we're not already listening, allow click-to-start.
+    if (!running) {
+      empty.classList.add('clickable');
+      empty.title = 'Click to start listening';
+      empty.onclick = () => {
+        if (running) return;
+        ensureAudioCtx();
+        primeAudio();
+        startListening();
+      };
+    }
     chatEl.appendChild(empty);
     return;
   }
@@ -854,6 +876,7 @@ const STOP_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6
 function setRunningUI(isRunning) {
   toggleBtn.classList.toggle('running', isRunning);
   toggleBtn.setAttribute('aria-label', isRunning ? 'Stop' : 'Start');
+  toggleBtn.title = isRunning ? 'Stop active listening' : 'Start listening';
   toggleBtn.innerHTML = isRunning ? STOP_ICON : PLAY_ICON;
 }
 
@@ -921,6 +944,7 @@ function startListening() {
   setRunningUI(true);
   setStatusState('live', waitingLabel());
   startWebSpeechMode();
+  renderChat(); // drop clickable affordance from the empty placeholder
 }
 function stopListening() {
   running = false;
@@ -937,6 +961,7 @@ function stopListening() {
   stopTTS();
   setRunningUI(false);
   setStatusState('idle', 'Stopped');
+  renderChat(); // re-add clickable affordance
 }
 
 // Web Speech fallback (only used if no ELEVENLABS_API_KEY env var on the server).
